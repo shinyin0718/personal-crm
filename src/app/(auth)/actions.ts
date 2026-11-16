@@ -1,7 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isEmailAllowed } from "@/lib/limits";
@@ -12,6 +12,9 @@ async function signInWithPassword(email: string, password: string): Promise<Form
   try {
     await signIn("credentials", { email, password, redirectTo: "/people" });
   } catch (err) {
+    if (err instanceof CredentialsSignin && err.code === "rate_limited") {
+      return { errors: { form: "Too many login attempts. Try again in 15 minutes." }, values: { email } };
+    }
     if (err instanceof AuthError) {
       return { errors: { form: "Wrong email or password." }, values: { email } };
     }

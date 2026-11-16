@@ -37,6 +37,7 @@ All settings are environment variables; see [`.env.example`](.env.example).
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Optional Google sign-in. Redirect URI: `https://<your-domain>/api/auth/callback/google`. |
 | `VISION_PROVIDER` | `gemini` (default, has a free tier), `openai` (GPT-4o) or `anthropic` (Claude). Set the matching `*_API_KEY`. |
 | `SIGNUP_ALLOWLIST` | Who may create an account: comma-separated emails and/or `@domain` entries. Empty means anyone can sign up, so set it on a public deployment. Applies to Google sign-in too. |
+| *(login limit)* | Built in, no setting: 5 wrong passwords per email, or 30 per IP address, within 15 minutes blocks further tries until the window passes. Behind your own proxy, make sure it sets `X-Forwarded-For`; Vercel does this for you. |
 | `SCAN_DAILY_LIMIT` | Card reads (uploads + retries) per account per 24 hours, to protect your AI key. Default `20`. |
 | `GEMINI_MODELS` | Comma-separated Gemini models tried in order when one is busy or out of quota. |
 | `S3_*` | Any S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2, MinIO). Card photos are private and served through the app only to their owner. |

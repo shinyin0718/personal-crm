@@ -1,16 +1,21 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { isEmailAllowed } from "@/lib/limits";
+import { clearLoginAttempts, clientIp, reserveLoginAttempt } from "@/lib/login-limit";
 import { credentialsSchema } from "@/lib/validation";
 import { authConfig } from "./auth.config";
 
 export const googleEnabled = Boolean(
   process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
 );
+
+class RateLimited extends CredentialsSignin {
+  code = "rate_limited";
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -19,15 +24,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      async authorize(raw) {
+      async authorize(raw, request) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
-        });
+        const { email, password } = parsed.data;
+        const reserved = await reserveLoginAttempt(email, clientIp(request.headers));
+        if (!reserved) throw new RateLimited();
+        const user = await prisma.user.findUnique({ where: { email } });
         if (!user?.passwordHash) return null;
-        const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
-        return ok ? { id: user.id, email: user.email, name: user.name } : null;
+        if (!(await bcrypt.compare(password, user.passwordHash))) return null;
+        await clearLoginAttempts(email, reserved);
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
     ...(googleEnabled ? [Google] : []),
