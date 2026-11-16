@@ -9,8 +9,10 @@ import { Field, FormError, buttonClass, cardClass, inputClass } from "@/componen
 export function AuthForm({
   mode,
   action,
+  callbackUrl,
 }: {
   mode: "login" | "signup";
+  callbackUrl?: string | null;
   action: (s: FormState, fd: FormData) => Promise<FormState>;
 }) {
   const [state, formAction] = useActionState(action, {});
@@ -21,6 +23,7 @@ export function AuthForm({
     <form action={formAction} className={`${cardClass} space-y-4`}>
       <h1 className="text-xl font-semibold">{signup ? "Create account" : "Sign in"}</h1>
       <FormError message={e.form} />
+      {callbackUrl && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
       {signup && (
         <Field label="Name" htmlFor="name" optional error={e.name}>
           <input id="name" name="name" autoComplete="name" defaultValue={v.name} className={inputClass} />
@@ -45,7 +48,8 @@ export function AuthForm({
       </SubmitButton>
       <p className="text-center text-sm text-stone-600">
         {signup ? "Have an account? " : "New here? "}
-        <Link href={signup ? "/login" : "/signup"} className="font-medium text-teal-700 hover:underline">
+        <Link
+          href={(signup ? "/login" : "/signup") + (callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : "")} className="font-medium text-teal-700 hover:underline">
           {signup ? "Sign in" : "Create an account"}
         </Link>
       </p>
