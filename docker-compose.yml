@@ -22,6 +22,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://crm:${POSTGRES_PASSWORD:-change-me}@db:5432/crm
+      DATABASE_URL_UNPOOLED: ""
       DIRECT_URL: ""
     volumes:
       - uploads:/data/uploads
