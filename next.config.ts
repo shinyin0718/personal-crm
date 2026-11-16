@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
+  },
   turbopack: {
     rules: {
       "*.css": {
