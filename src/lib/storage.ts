@@ -49,9 +49,10 @@ function s3Store(bucket: string): Store {
   const client = new S3Client({
     region: process.env.S3_REGION || process.env.AWS_REGION || "auto",
     endpoint,
-    // Neon only supports path-style addressing.
+    // Neon only supports path-style addressing; AWS_ENDPOINT_URL_S3 alone has always implied it.
     forcePathStyle:
       process.env.S3_FORCE_PATH_STYLE === "true" ||
+      (!process.env.S3_ENDPOINT && Boolean(process.env.AWS_ENDPOINT_URL_S3)) ||
       (endpoint ? new URL(endpoint).hostname.endsWith(".neon.tech") : false),
     credentials:
       process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY
