@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  passwordHash  String?   @map("password_hash")
+  // Card-read quota: reads used in the 24h window that started at scanWindowStart.
+  scanCount       Int       @default(0) @map("scan_count")
+  scanWindowStart DateTime? @map("scan_window_start")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts     Account[]
+  sessions     Session[]
+  people       Person[]
+  interactions Interaction[]
+  cardScans    CardScan[]
+  tags         Tag[]
+
+  @@map("users")
+}
+
+// Auth.js (OAuth) tables
+model Account {
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Person {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  name         String
+  email        String?
+  phone        String?
+  company      String?
+  role         String?
+  linkedinUrl  String?  @map("linkedin_url")
+  cardImageUrl String?  @map("card_image_url")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interactions Interaction[]
+  tags         Tag[]
+  cardScans    CardScan[]
+
+  @@index([userId, name])
+  @@index([userId, company])
+  @@map("people")
+}
+
+model Interaction {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  personId  String   @map("person_id")
+  metAt     DateTime @map("met_at") @db.Date
+  location  String?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId, metAt])
+  @@index([userId, metAt])
+  @@map("interactions")
+}
+
+enum CardScanStatus {
+  PROCESSING
+  EXTRACTED
+  FAILED
+  CONFIRMED
+}
+
+model CardScan {
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  imageUrl      String         @map("image_url")
+  extractedJson Json?          @map("extracted_json")
+  status        CardScanStatus @default(PROCESSING)
+  error         String?
+  personId      String?        @map("person_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("card_scans")
+}
+
+model Tag {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  name   String
+  people Person[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+// Failed (and in-flight) password logins, used to throttle guessing. Keys: "email:<addr>" or "ip:<addr>".
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
