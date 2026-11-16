@@ -5,8 +5,9 @@ const WINDOW_MS = 15 * 60 * 1000;
 export const EMAIL_LIMIT = 5;
 export const IP_LIMIT = 30;
 
+/** Last X-Forwarded-For hop: the one our own proxy (Vercel, nginx) added, so clients can't pick it. */
 export function clientIp(headers: Headers): string {
-  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const forwarded = headers.get("x-forwarded-for")?.split(",").at(-1)?.trim();
   return forwarded || headers.get("x-real-ip")?.trim() || "unknown";
 }
 
