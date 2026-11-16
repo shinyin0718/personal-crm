@@ -33,11 +33,12 @@ export async function createPerson(_prev: FormState, fd: FormData): Promise<Form
     notes: values.meetingNotes,
   });
   if (!person.success || !meeting.success) {
-    const errors = {
+    const { notes: meetingNotes, ...meetingErrors } = meeting.success ? {} : fieldErrors(meeting.error);
+    const errors: FieldErrors = {
       ...(person.success ? {} : fieldErrors(person.error)),
-      ...(meeting.success ? {} : fieldErrors(meeting.error)),
+      ...meetingErrors,
+      ...(meetingNotes && { meetingNotes }),
     };
-    if (errors.notes && !person.success) errors.meetingNotes = errors.notes;
     return { errors, values };
   }
   const m = meeting.data;
