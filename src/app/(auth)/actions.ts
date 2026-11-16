@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
+import { isEmailAllowed } from "@/lib/limits";
 import { credentialsSchema, fieldErrors, formValues, signupSchema } from "@/lib/validation";
 import type { FormState } from "@/app/(app)/actions";
 
@@ -35,6 +36,9 @@ export async function signup(_prev: FormState, fd: FormData): Promise<FormState>
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: safeValues };
 
   const { email, password, name } = parsed.data;
+  if (!isEmailAllowed(email)) {
+    return { errors: { email: "Sign-up is invite-only. Ask the owner to add your email." }, values: safeValues };
+  }
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) {
     return { errors: { email: "An account with this email already exists." }, values: safeValues };

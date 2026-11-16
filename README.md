@@ -36,6 +36,8 @@ All settings are environment variables; see [`.env.example`](.env.example).
 | `AUTH_SECRET` | Required. Signs session cookies. |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Optional Google sign-in. Redirect URI: `https://<your-domain>/api/auth/callback/google`. |
 | `VISION_PROVIDER` | `gemini` (default, has a free tier), `openai` (GPT-4o) or `anthropic` (Claude). Set the matching `*_API_KEY`. |
+| `SIGNUP_ALLOWLIST` | Who may create an account: comma-separated emails and/or `@domain` entries. Empty means anyone can sign up, so set it on a public deployment. Applies to Google sign-in too. |
+| `SCAN_DAILY_LIMIT` | Card reads (uploads + retries) per account per 24 hours, to protect your AI key. Default `20`. |
 | `GEMINI_MODELS` | Comma-separated Gemini models tried in order when one is busy or out of quota. |
 | `S3_*` | Any S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2, MinIO). Card photos are private and served through the app only to their owner. |
 | `UPLOAD_DIR` | Used when `S3_BUCKET` is empty: photos are saved to this folder (self-hosting only; Vercel's disk is not persistent). |
@@ -46,7 +48,7 @@ The prompt that tells the AI how to read a card is in [`src/lib/vision/parse.ts`
 
 1. Create a database at [neon.tech](https://neon.tech) (free tier). Copy the **pooled** and **direct** connection strings.
 2. Create an S3-compatible bucket for card photos, e.g. Cloudflare R2 (free tier): make a bucket and an API token with read/write access to it.
-3. On [vercel.com/new](https://vercel.com/new), import this repo. Under **Environment Variables** add `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `GEMINI_API_KEY` (or another provider's key), and the `S3_*` values.
+3. On [vercel.com/new](https://vercel.com/new), import this repo. Under **Environment Variables** add `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `GEMINI_API_KEY` (or another provider's key), `SIGNUP_ALLOWLIST` (your email), and the `S3_*` values.
 4. In **Settings → Build and Deployment**, set the Build Command to `npm run vercel-build` (runs database migrations, then builds).
 5. Deploy.
 

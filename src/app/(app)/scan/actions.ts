@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/dal";
+import { limitMessage } from "@/lib/limits";
+import { takeScanCredit } from "@/lib/quota";
 import { deleteFileByUrl, getFile, keyFromUrl, putFile } from "@/lib/storage";
 import { readCard } from "@/lib/vision/providers";
 import { toCardFields } from "@/lib/vision/parse";
@@ -49,6 +51,7 @@ export async function uploadCard(_prev: UploadState, fd: FormData): Promise<Uplo
   const ext = TYPES[file.type];
   if (!ext) return { error: "Use a JPEG, PNG or WebP photo." };
   if (file.size > MAX_BYTES) return { error: "That photo is too large (max 4 MB)." };
+  if (!(await takeScanCredit(userId))) return { error: limitMessage() };
 
   const data = Buffer.from(await file.arrayBuffer());
   const imageUrl = await putFile(`${userId}/cards/${randomUUID()}.${ext}`, data);
@@ -68,6 +71,8 @@ export async function retryScan(scanId: string) {
       where: { id: scanId, userId },
       data: { status: "FAILED", error: "Image not found" },
     });
+  } else if (!(await takeScanCredit(userId))) {
+    redirect(`/scan/${scanId}?limit=1`);
   } else {
     const ext = key.split(".").pop();
     await extract(scanId, userId, data, ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg");

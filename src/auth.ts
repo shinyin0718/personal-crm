@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { isEmailAllowed } from "@/lib/limits";
 import { credentialsSchema } from "@/lib/validation";
 import { authConfig } from "./auth.config";
 
@@ -31,4 +32,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     ...(googleEnabled ? [Google] : []),
   ],
+  callbacks: {
+    ...authConfig.callbacks,
+    // Google can create accounts too, so it must respect SIGNUP_ALLOWLIST for new emails.
+    async signIn({ account, user }) {
+      if (account?.provider !== "google") return true;
+      const email = user.email?.toLowerCase();
+      if (!email) return false;
+      if (isEmailAllowed(email)) return true;
+      return Boolean(await prisma.user.findUnique({ where: { email }, select: { id: true } }));
+    },
+  },
 });

@@ -9,11 +9,12 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { PageHeader, secondaryButtonClass } from "@/components/ui";
 import { createPerson } from "../../actions";
 import { formOptions } from "../../people/options";
+import { limitMessage } from "@/lib/limits";
 import { discardScan, retryScan } from "../actions";
 
 export const metadata: Metadata = { title: "Check details" };
 
-export default async function ReviewScanPage({ params }: PageProps<"/scan/[id]">) {
+export default async function ReviewScanPage({ params, searchParams }: PageProps<"/scan/[id]">) {
   const userId = await requireUserId();
   const { id } = await params;
   const scan = await prisma.cardScan.findFirst({ where: { id, userId } });
@@ -23,6 +24,7 @@ export default async function ReviewScanPage({ params }: PageProps<"/scan/[id]">
   const fields = cardFieldsFromJson(scan.extractedJson);
   const initial = Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v ?? ""]));
   const failed = scan.status !== "EXTRACTED";
+  const overLimit = (await searchParams).limit === "1";
 
   return (
     <>
@@ -31,7 +33,7 @@ export default async function ReviewScanPage({ params }: PageProps<"/scan/[id]">
       <img src={scan.imageUrl} alt="Business card" className="mb-4 max-h-64 w-full rounded-xl border border-stone-200 bg-white object-contain" />
       {failed && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p>Couldn&apos;t read this card. Try again or type the details.</p>
+          <p>{overLimit ? limitMessage() : "Couldn’t read this card. Try again or type the details."}</p>
           <form action={retryScan.bind(null, scan.id)}>
             <SubmitButton className={secondaryButtonClass} pendingText="Reading…">Try again</SubmitButton>
           </form>
