@@ -88,7 +88,7 @@ export async function refreshGrant(refreshToken: string, clientId: string) {
   const refreshHash = sha256(refreshToken);
   const grant = await prisma.oAuthGrant.findUnique({ where: { refreshHash } });
   if (!grant) {
-    await prisma.oAuthGrant.deleteMany({ where: { previousRefreshHash: refreshHash } });
+    await prisma.oAuthGrant.deleteMany({ where: { previousRefreshHash: refreshHash, clientId } });
     return null;
   }
   if (grant.clientId !== clientId || grant.refreshExpiresAt < new Date()) return null;
