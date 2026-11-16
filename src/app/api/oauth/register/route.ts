@@ -1,8 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { clientIp } from "@/lib/login-limit";
 import { isAllowedRedirectUri, randomToken, sha256 } from "@/lib/oauth";
-import { sweepExpired } from "@/lib/oauth-store";
+import { UNAPPROVED_CLIENT_TTL_MS, sweepExpired } from "@/lib/oauth-store";
 import { oauthError } from "../client-auth";
+
+const PER_IP_PER_HOUR = 10;
+const MAX_UNAPPROVED = 200;
 
 // RFC 7591 dynamic client registration (how Claude registers itself).
 export async function POST(req: Request) {
@@ -23,6 +27,18 @@ export async function POST(req: Request) {
     (typeof body.client_name === "string" ? body.client_name.trim().slice(0, 100) : "") || "Unnamed app";
 
   await sweepExpired();
+  const ip = clientIp(req.headers);
+  const [fromIp, unapproved] = await Promise.all([
+    prisma.oAuthClient.count({
+      where: { registrationIp: ip, createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
+    }),
+    prisma.oAuthClient.count({
+      where: { approvedAt: null, createdAt: { gt: new Date(Date.now() - UNAPPROVED_CLIENT_TTL_MS) } },
+    }),
+  ]);
+  if (fromIp >= PER_IP_PER_HOUR || unapproved >= MAX_UNAPPROVED) {
+    return oauthError("too_many_requests", "Too many app registrations. Try again later.", 429);
+  }
   const clientId = `crm_client_${randomBytes(16).toString("hex")}`;
   const clientSecret = method === "none" ? null : randomToken("crm_cs_");
   const client = await prisma.oAuthClient.create({
@@ -31,6 +47,7 @@ export async function POST(req: Request) {
       name,
       redirectUris: uris as string[],
       secretHash: clientSecret ? sha256(clientSecret) : null,
+      registrationIp: ip,
     },
   });
 
