@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyScanLimit, isEmailAllowed } from "@/lib/limits";
+import { dailyScanLimit, isEmailAllowed, passwordSignupEnabled } from "@/lib/limits";
 
 describe("isEmailAllowed", () => {
   it("allows anyone when the list is empty", () => {
@@ -21,5 +21,13 @@ describe("dailyScanLimit", () => {
     expect(dailyScanLimit("0")).toBe(20);
     expect(dailyScanLimit("abc")).toBe(20);
     expect(dailyScanLimit("5")).toBe(5);
+  });
+});
+
+describe("passwordSignupEnabled", () => {
+  it("is off unless explicitly true", () => {
+    expect(passwordSignupEnabled(undefined)).toBe(false);
+    expect(passwordSignupEnabled("1")).toBe(false);
+    expect(passwordSignupEnabled("true")).toBe(true);
   });
 });

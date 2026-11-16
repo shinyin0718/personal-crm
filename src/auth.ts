@@ -41,11 +41,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    // Google can create accounts too, so it must respect SIGNUP_ALLOWLIST for new emails.
-    async signIn({ account, user }) {
+    // Google is how new accounts are made, so it must respect SIGNUP_ALLOWLIST for new emails.
+    async signIn({ account, profile, user }) {
       if (account?.provider !== "google") return true;
       const email = user.email?.toLowerCase();
-      if (!email) return false;
+      if (!email || profile?.email_verified !== true) return false;
       if (isEmailAllowed(email)) return true;
       return Boolean(await prisma.user.findUnique({ where: { email }, select: { id: true } }));
     },

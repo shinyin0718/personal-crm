@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
-import { isEmailAllowed } from "@/lib/limits";
+import { isEmailAllowed, passwordSignupEnabled } from "@/lib/limits";
 import { credentialsSchema, fieldErrors, formValues, signupSchema } from "@/lib/validation";
 import type { FormState } from "@/app/(app)/actions";
 
@@ -33,6 +33,7 @@ export async function login(_prev: FormState, fd: FormData): Promise<FormState> 
 }
 
 export async function signup(_prev: FormState, fd: FormData): Promise<FormState> {
+  if (!passwordSignupEnabled()) return { errors: { form: "New accounts sign up with Google." } };
   const values = formValues(fd, ["name", "email", "password"]);
   const parsed = signupSchema.safeParse(values);
   const safeValues = { name: values.name, email: values.email };

@@ -17,3 +17,11 @@ export function dailyScanLimit(value = process.env.SCAN_DAILY_LIMIT): number {
 
 export const limitMessage = () =>
   `You've reached today's limit of ${dailyScanLimit()} card reads. Try again tomorrow, or add the person by hand.`;
+
+/**
+ * Password sign-up can't prove the email is theirs, so new accounts come through Google by default.
+ * ALLOW_PASSWORD_SIGNUP=true re-enables it (local dev, or self-hosting without Google).
+ */
+export function passwordSignupEnabled(value = process.env.ALLOW_PASSWORD_SIGNUP): boolean {
+  return value === "true";
+}
