@@ -20,9 +20,8 @@ export async function reserveLoginAttempt(email: string, ip: string): Promise<st
   const since = new Date(Date.now() - WINDOW_MS);
   const emailKey = `email:${email}`;
   const ipKey = `ip:${ip}`;
-  await prisma.loginAttempt.deleteMany({
-    where: { key: { in: [emailKey, ipKey] }, createdAt: { lt: since } },
-  });
+  // Sweep every expired row, not just these keys, so one-off emails/IPs don't pile up.
+  await prisma.loginAttempt.deleteMany({ where: { createdAt: { lt: since } } });
   const rows = await prisma.loginAttempt.createManyAndReturn({
     data: [{ key: emailKey }, { key: ipKey }],
     select: { id: true },
