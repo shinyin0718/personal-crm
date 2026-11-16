@@ -8,6 +8,8 @@ import { PageHeader, buttonClass, inputClass } from "@/components/ui";
 
 export const metadata: Metadata = { title: "People" };
 
+const clearClass = "rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-100";
+
 export default async function PeoplePage({ searchParams }: PageProps<"/people">) {
   const userId = await requireUserId();
   const f = parseFilters(await searchParams);
@@ -117,7 +119,11 @@ export default async function PeoplePage({ searchParams }: PageProps<"/people">)
               </label>
             )}
             <div className="flex items-end justify-end gap-2 sm:col-span-2">
-              <Link href="/people" className="rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-100">Clear</Link>
+              {searching ? (
+                <Link href="/people" className={clearClass}>Clear</Link>
+              ) : (
+                <button type="reset" className={clearClass}>Clear</button>
+              )}
               <button className={buttonClass}>Apply</button>
             </div>
           </div>
