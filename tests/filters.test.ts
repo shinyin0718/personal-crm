@@ -16,3 +16,12 @@ describe("buildPeopleWhere", () => {
     expect(JSON.stringify(where)).toContain("summit");
   });
 });
+
+describe("date filters", () => {
+  it("ignores impossible calendar dates", () => {
+    const f = parseFilters({ from: "2026-13-01", to: "2026-02-30" });
+    expect(f.from).toBe("");
+    expect(f.to).toBe("");
+    expect(parseFilters({ from: "2024-02-29" }).from).toBe("2024-02-29");
+  });
+});

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isDateInput } from "@/lib/dates";
 
 const text = (max: number) =>
   z
@@ -41,7 +42,7 @@ export function parseTags(raw: string): string[] {
   return [...seen.values()].slice(0, 20);
 }
 
-const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
+const dateString = z.string().refine(isDateInput, "Pick a date");
 
 export const personSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),

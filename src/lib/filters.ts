@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { parseDateInput } from "@/lib/dates";
+import { isDateInput, parseDateInput } from "@/lib/dates";
 
 export interface PeopleFilters {
   q: string;
@@ -11,8 +11,6 @@ export interface PeopleFilters {
   sort: "recent" | "name";
 }
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 type Params = Record<string, string | string[] | undefined>;
 
 export function parseFilters(params: Params): PeopleFilters {
@@ -20,7 +18,7 @@ export function parseFilters(params: Params): PeopleFilters {
     const v = params[k];
     return (Array.isArray(v) ? v[0] : v)?.trim().slice(0, 200) ?? "";
   };
-  const date = (k: string) => (DATE.test(one(k)) ? one(k) : "");
+  const date = (k: string) => (isDateInput(one(k)) ? one(k) : "");
   return {
     q: one("q"),
     company: one("company"),
