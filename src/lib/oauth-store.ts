@@ -29,9 +29,12 @@ export async function createCode(input: {
   resource: string | null;
 }): Promise<string> {
   const code = randomToken("crm_code_");
-  await prisma.oAuthCode.create({
-    data: { ...input, codeHash: sha256(code), expiresAt: new Date(Date.now() + CODE_TTL_MS) },
-  });
+  await prisma.$transaction([
+    prisma.oAuthClient.updateMany({ where: { id: input.clientId, approvedAt: null }, data: { approvedAt: new Date() } }),
+    prisma.oAuthCode.create({
+      data: { ...input, codeHash: sha256(code), expiresAt: new Date(Date.now() + CODE_TTL_MS) },
+    }),
+  ]);
   return code;
 }
 
@@ -77,14 +80,27 @@ export async function createGrant(clientId: string, userId: string, resource: st
   return t;
 }
 
-/** Rotates the refresh token; the old one stops working. */
+/**
+ * Rotates the refresh token; the old one stops working. Reusing a replaced refresh token
+ * means it leaked (OAuth 2.1 §4.3.1), so the whole grant is revoked.
+ */
 export async function refreshGrant(refreshToken: string, clientId: string) {
   const refreshHash = sha256(refreshToken);
   const grant = await prisma.oAuthGrant.findUnique({ where: { refreshHash } });
-  if (!grant || grant.clientId !== clientId || grant.refreshExpiresAt < new Date()) return null;
+  if (!grant) {
+    await prisma.oAuthGrant.deleteMany({ where: { previousRefreshHash: refreshHash } });
+    return null;
+  }
+  if (grant.clientId !== clientId || grant.refreshExpiresAt < new Date()) return null;
   const t = freshTokens();
-  const { count } = await prisma.oAuthGrant.updateMany({ where: { id: grant.id, refreshHash }, data: t.data });
-  return count === 1 ? t : null;
+  const { count } = await prisma.oAuthGrant.updateMany({
+    where: { id: grant.id, refreshHash },
+    data: { ...t.data, previousRefreshHash: refreshHash },
+  });
+  if (count === 1) return t;
+  // Lost a race with another refresh of the same token: treat it as reuse.
+  await prisma.oAuthGrant.deleteMany({ where: { id: grant.id } });
+  return null;
 }
 
 export async function revokeToken(token: string, clientId: string) {
@@ -112,16 +128,18 @@ export async function userForAccessToken(token: string): Promise<{ userId: strin
   return { userId: grant.userId, clientId: grant.clientId };
 }
 
+export const UNAPPROVED_CLIENT_TTL_MS = 24 * 60 * 60 * 1000;
+
 export async function sweepExpired() {
   const now = new Date();
   await prisma.$transaction([
     prisma.oAuthCode.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.oAuthGrant.deleteMany({ where: { refreshExpiresAt: { lt: now } } }),
-    // Registered clients that never finished connecting.
+    // Registered clients nobody ever approved. Approved ones stay so they can reconnect.
     prisma.oAuthClient.deleteMany({
       where: {
-        createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
-        grants: { none: {} },
+        approvedAt: null,
+        createdAt: { lt: new Date(now.getTime() - UNAPPROVED_CLIENT_TTL_MS) },
         codes: { none: {} },
       },
     }),
