@@ -17,7 +17,8 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/files/[...key]"
   return new Response(new Uint8Array(body), {
     headers: {
       "Content-Type": contentTypeFor(key),
-      "Cache-Control": "private, max-age=31536000, immutable",
+      // no-store: a shared browser must not show one account's cards to the next.
+      "Cache-Control": "private, no-store",
     },
   });
 }
