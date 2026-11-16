@@ -8,11 +8,13 @@ export function ConfirmDeleteForm({
   label,
   question,
   className = dangerButtonClass,
+  pendingText = "Deleting…",
 }: {
   action: () => Promise<void>;
   label: string;
   question: string;
   className?: string;
+  pendingText?: string;
 }) {
   return (
     <form
@@ -21,7 +23,7 @@ export function ConfirmDeleteForm({
         if (!window.confirm(question)) e.preventDefault();
       }}
     >
-      <SubmitButton className={className} pendingText="Deleting…">
+      <SubmitButton className={className} pendingText={pendingText}>
         {label}
       </SubmitButton>
     </form>

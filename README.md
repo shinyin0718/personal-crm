@@ -64,6 +64,25 @@ The database and the card-photo bucket both live in one Neon project, declared i
 3. **APIs & Services → Credentials → Create credentials → OAuth client ID**: type *Web application*; add `https://<your-domain>/api/auth/callback/google` under *Authorized redirect URIs* (and `http://localhost:3000/api/auth/callback/google` for local dev).
 4. Copy the client ID and secret into `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
 
+## Connect Claude (MCP)
+
+The app is a remote MCP server, so Claude can read your people and meeting notes, summarise meetings,
+research people before you meet (with its own web search) and save notes back. It works on Claude's free
+plan, which allows one custom connector.
+
+1. In Claude (web, Desktop or mobile), open **Customize → Connectors → + Add → Add custom connector**.
+2. Paste `https://<your-domain>/api/mcp` (also shown on the Account page) and leave the OAuth fields empty.
+3. Claude opens a sign-in page: sign in to the CRM and click **Allow**.
+4. In a chat, enable the connector from the **+** menu and ask, e.g. "Summarise my meetings with Mei Ling and
+   list next steps" or "Research Northwind Labs before Friday".
+
+Tools: `search_people`, `get_person`, `search_meetings`, `list_tags`, `add_meeting`, `add_person_note`,
+`add_person`. Nothing can be deleted through the connector. Every tool is scoped to the signed-in user.
+
+Sign-in is OAuth 2.1 with PKCE and dynamic client registration, served by the app itself
+(`/.well-known/oauth-authorization-server`, `/oauth/authorize`, `/api/oauth/*`). Access tokens last an hour
+and refresh tokens 60 days (rotated on use); only their hashes are stored. Disconnect an app on the Account page.
+
 ## Self-host with Docker
 
 ```bash

@@ -5,12 +5,18 @@ import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isEmailAllowed, passwordSignupEnabled } from "@/lib/limits";
+import { safeCallbackPath } from "@/lib/oauth";
 import { credentialsSchema, fieldErrors, formValues, signupSchema } from "@/lib/validation";
 import type { FormState } from "@/app/(app)/actions";
 
-async function signInWithPassword(email: string, password: string): Promise<FormState | never> {
+/** Where to land after signing in: a same-site callbackUrl (e.g. the Claude consent page) or /people. */
+function redirectTarget(fd: FormData): string {
+  return safeCallbackPath(fd.get("callbackUrl")) ?? "/people";
+}
+
+async function signInWithPassword(email: string, password: string, redirectTo: string): Promise<FormState | never> {
   try {
-    await signIn("credentials", { email, password, redirectTo: "/people" });
+    await signIn("credentials", { email, password, redirectTo });
   } catch (err) {
     if (err instanceof CredentialsSignin && err.code === "rate_limited") {
       return { errors: { form: "Too many login attempts. Try again in 15 minutes." }, values: { email } };
@@ -29,7 +35,7 @@ export async function login(_prev: FormState, fd: FormData): Promise<FormState> 
   if (!parsed.success) {
     return { errors: { form: "Wrong email or password." }, values: { email: values.email } };
   }
-  return signInWithPassword(parsed.data.email, parsed.data.password);
+  return signInWithPassword(parsed.data.email, parsed.data.password, redirectTarget(fd));
 }
 
 export async function signup(_prev: FormState, fd: FormData): Promise<FormState> {
@@ -50,11 +56,11 @@ export async function signup(_prev: FormState, fd: FormData): Promise<FormState>
   await prisma.user.create({
     data: { email, name, passwordHash: await bcrypt.hash(password, 12) },
   });
-  return signInWithPassword(email, password);
+  return signInWithPassword(email, password, redirectTarget(fd));
 }
 
-export async function googleSignIn() {
-  await signIn("google", { redirectTo: "/people" });
+export async function googleSignIn(fd: FormData) {
+  await signIn("google", { redirectTo: redirectTarget(fd) });
 }
 
 export async function logout() {
