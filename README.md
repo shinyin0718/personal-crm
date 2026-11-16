@@ -33,7 +33,7 @@ All settings are environment variables; see [`.env.example`](.env.example).
 
 | Setting | What it does |
 | --- | --- |
-| `DATABASE_URL` / `DIRECT_URL` | Postgres. On Neon use the pooled URL for `DATABASE_URL` and the direct URL for `DIRECT_URL` (used by migrations). |
+| `DATABASE_URL` / `DATABASE_URL_UNPOOLED` | Postgres. On Neon, `DATABASE_URL` is the pooled URL (app traffic) and `DATABASE_URL_UNPOOLED` the direct one (migrations); `neon env pull` writes both. `DIRECT_URL` is accepted as the older name. |
 | `AUTH_SECRET` | Required. Signs session cookies. |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google sign-in, which is how new accounts are created (Google has verified the email). Redirect URI: `https://<your-domain>/api/auth/callback/google`. See [Google sign-in setup](#google-sign-in-setup). |
 | `ALLOW_PASSWORD_SIGNUP` | `true` also allows email + password sign-up. Off by default because it can't prove the email is theirs, so `SIGNUP_ALLOWLIST` could be bypassed. Existing password accounts can always sign in. |
@@ -42,16 +42,18 @@ All settings are environment variables; see [`.env.example`](.env.example).
 | *(login limit)* | Built in, no setting: 5 wrong passwords per email, or 30 per IP address, within 15 minutes blocks further tries until the window passes. Behind your own proxy, make sure it sets `X-Forwarded-For`; Vercel does this for you. |
 | `SCAN_DAILY_LIMIT` | Card reads (uploads + retries) per account per 24 hours, to protect your AI key. Default `20`. |
 | `GEMINI_MODELS` | Comma-separated Gemini models tried in order when one is busy or out of quota. |
-| `S3_*` | Any S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2, MinIO). Card photos are private and served through the app only to their owner. |
+| `S3_BUCKET` / `S3_*` | Any S3-compatible storage (Neon Object Storage, AWS S3, Cloudflare R2, MinIO). With Neon, set only `S3_BUCKET=card-images`: the endpoint and keys come from the `AWS_*` values `neon env pull` writes. Card photos are private and served through the app only to their owner. |
 | `UPLOAD_DIR` | Used when `S3_BUCKET` is empty: photos are saved to this folder (self-hosting only; Vercel's disk is not persistent). |
 
 The prompt that tells the AI how to read a card is in [`src/lib/vision/parse.ts`](src/lib/vision/parse.ts).
 
 ## Deploy: Vercel + Neon
 
-1. Create a database at [neon.tech](https://neon.tech) (free tier). Copy the **pooled** and **direct** connection strings.
-2. Create an S3-compatible bucket for card photos, e.g. Cloudflare R2 (free tier): make a bucket and an API token with read/write access to it.
-3. On [vercel.com/new](https://vercel.com/new), import this repo. Under **Environment Variables** add `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `GEMINI_API_KEY` (or another provider's key), `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` (see below), `SIGNUP_ALLOWLIST` (your email), and the `S3_*` values.
+The database and the card-photo bucket both live in one Neon project, declared in [`neon.ts`](neon.ts).
+
+1. Create a project at [neon.tech](https://neon.tech) (free plan) in a region with Object Storage (`aws-us-east-1`, `aws-us-east-2`, `aws-eu-central-1` or `aws-ap-southeast-1`).
+2. In this folder: `npm i -g neon`, `neon login`, `neon link --project-id <id>`, then `neon deploy`. That creates the `card-images` bucket and writes `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `AWS_*` into `.env`.
+3. On [vercel.com/new](https://vercel.com/new), import this repo. Under **Environment Variables** add `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION` (all from `.env`), `S3_BUCKET=card-images`, `AUTH_SECRET`, `GEMINI_API_KEY` (or another provider's key), `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` (see below), and `SIGNUP_ALLOWLIST` (your email).
 4. In **Settings → Build and Deployment**, set the Build Command to `npm run vercel-build` (runs database migrations, then builds).
 5. Deploy.
 
