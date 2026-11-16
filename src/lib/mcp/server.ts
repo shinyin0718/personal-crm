@@ -243,13 +243,17 @@ export function createCrmServer(userId: string, appUrl: string) {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async ({ personId, note }) => {
-      const p = await prisma.person.findFirst({ where: { id: personId, userId }, select: { id: true, notes: true } });
-      if (!p) return failure("No person with that id. Use search_people to find one.");
       const stamped = `[${toDateInput(new Date())}] ${note}`;
-      const notes = p.notes ? `${p.notes}\n\n${stamped}` : stamped;
-      if (notes.length > 5000) return failure("Notes would exceed 5000 characters. Shorten the note.");
-      await prisma.person.update({ where: { id: p.id, userId }, data: { notes } });
-      return result({ saved: true, link: personLink(p.id) });
+      // Compare-and-swap so concurrent appends don't overwrite each other.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const p = await prisma.person.findFirst({ where: { id: personId, userId }, select: { id: true, notes: true } });
+        if (!p) return failure("No person with that id. Use search_people to find one.");
+        const notes = p.notes ? `${p.notes}\n\n${stamped}` : stamped;
+        if (notes.length > 5000) return failure("Notes would exceed 5000 characters. Shorten the note.");
+        const { count } = await prisma.person.updateMany({ where: { id: p.id, userId, notes: p.notes }, data: { notes } });
+        if (count === 1) return result({ saved: true, link: personLink(p.id) });
+      }
+      return failure("The notes kept changing while saving. Try again.");
     },
   );
 
