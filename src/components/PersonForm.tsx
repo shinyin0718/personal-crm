@@ -66,7 +66,6 @@ export function PersonForm({
         </div>
         {text("linkedinUrl", "LinkedIn", {
           optional: true,
-          type: "url",
           placeholder: "linkedin.com/in/…",
         })}
         <Field label="Tags" htmlFor="tags" optional error={e.tags}>
