@@ -55,6 +55,14 @@ export async function createPerson(_prev: FormState, fd: FormData): Promise<Form
 
   const { tags, ...data } = person.data;
   const created = await prisma.$transaction(async (tx) => {
+    if (scan) {
+      // Claim the scan first so two concurrent saves can't both reuse its photo.
+      const claimed = await tx.cardScan.updateMany({
+        where: { id: scan.id, userId, status: { not: "CONFIRMED" } },
+        data: { status: "CONFIRMED" },
+      });
+      if (claimed.count !== 1) return null;
+    }
     const p = await tx.person.create({
       data: { ...data, userId, cardImageUrl: scan?.imageUrl ?? null },
     });
@@ -73,11 +81,12 @@ export async function createPerson(_prev: FormState, fd: FormData): Promise<Form
     if (scan) {
       await tx.cardScan.update({
         where: { id: scan.id, userId },
-        data: { status: "CONFIRMED", personId: p.id },
+        data: { personId: p.id },
       });
     }
     return p;
   });
+  if (!created) return { errors: { form: "This card was already saved." }, values };
   redirect(`/people/${created.id}`);
 }
 
