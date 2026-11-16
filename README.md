@@ -42,7 +42,7 @@ All settings are environment variables; see [`.env.example`](.env.example).
 | *(login limit)* | Built in, no setting: 5 wrong passwords per email, or 30 per IP address, within 15 minutes blocks further tries until the window passes. Behind your own proxy, make sure it sets `X-Forwarded-For`; Vercel does this for you. |
 | `SCAN_DAILY_LIMIT` | Card reads (uploads + retries) per account per 24 hours, to protect your AI key. Default `20`. |
 | `GEMINI_MODELS` | Comma-separated Gemini models tried in order when one is busy or out of quota. |
-| `S3_BUCKET` / `S3_*` | Any S3-compatible storage (Neon Object Storage, AWS S3, Cloudflare R2, MinIO). With Neon, set only `S3_BUCKET=card-images`: the endpoint and keys come from the `AWS_*` values `neon env pull` writes. Card photos are private and served through the app only to their owner. |
+| `S3_BUCKET` / `S3_*` | Any S3-compatible storage (Neon Object Storage, AWS S3, Cloudflare R2, MinIO). With Neon, locally set only `S3_BUCKET=card-images`: the endpoint and keys come from the `AWS_*` values `neon env pull` writes. On Vercel those `AWS_*` names are reserved, so use the `S3_*` names (see below). Card photos are private and served through the app only to their owner. |
 | `UPLOAD_DIR` | Used when `S3_BUCKET` is empty: photos are saved to this folder (self-hosting only; Vercel's disk is not persistent). |
 
 The prompt that tells the AI how to read a card is in [`src/lib/vision/parse.ts`](src/lib/vision/parse.ts).
@@ -53,7 +53,7 @@ The database and the card-photo bucket both live in one Neon project, declared i
 
 1. Create a project at [neon.tech](https://neon.tech) (free plan) in a region with Object Storage (`aws-us-east-1`, `aws-us-east-2`, `aws-eu-central-1` or `aws-ap-southeast-1`).
 2. In this folder: `npm i -g neon`, `neon login`, `neon link --project-id <id>`, then `neon deploy`. That creates the `card-images` bucket and writes `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `AWS_*` into `.env`.
-3. On [vercel.com/new](https://vercel.com/new), import this repo. Under **Environment Variables** add `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION` (all from `.env`), `S3_BUCKET=card-images`, `AUTH_SECRET`, `GEMINI_API_KEY` (or another provider's key), `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` (see below), and `SIGNUP_ALLOWLIST` (your email).
+3. On [vercel.com/new](https://vercel.com/new), import this repo. Under **Environment Variables** add `DATABASE_URL` and `DATABASE_URL_UNPOOLED` from `.env`, then the storage values from `.env` under Vercel-safe names, because Vercel reserves `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`: `S3_ACCESS_KEY_ID` (= `AWS_ACCESS_KEY_ID`), `S3_SECRET_ACCESS_KEY` (= `AWS_SECRET_ACCESS_KEY`), `S3_REGION` (= `AWS_REGION`), `S3_ENDPOINT` (= `AWS_ENDPOINT_URL_S3`). Also add `S3_BUCKET=card-images`, `AUTH_SECRET`, `GEMINI_API_KEY` (or another provider's key), `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` (see below), and `SIGNUP_ALLOWLIST` (your email).
 4. In **Settings → Build and Deployment**, set the Build Command to `npm run vercel-build` (runs database migrations, then builds).
 5. Deploy.
 
