@@ -28,19 +28,9 @@ export async function POST(req: Request) {
 
   await sweepExpired();
   const ip = clientIp(req.headers);
-  const [fromIp, unapproved] = await Promise.all([
-    prisma.oAuthClient.count({
-      where: { registrationIp: ip, createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
-    }),
-    prisma.oAuthClient.count({
-      where: { approvedAt: null, createdAt: { gt: new Date(Date.now() - UNAPPROVED_CLIENT_TTL_MS) } },
-    }),
-  ]);
-  if (fromIp >= PER_IP_PER_HOUR || unapproved >= MAX_UNAPPROVED) {
-    return oauthError("too_many_requests", "Too many app registrations. Try again later.", 429);
-  }
   const clientId = `crm_client_${randomBytes(16).toString("hex")}`;
   const clientSecret = method === "none" ? null : randomToken("crm_cs_");
+  // Insert first, then count (including this row), so parallel requests can't all slip under the limits.
   const client = await prisma.oAuthClient.create({
     data: {
       id: clientId,
@@ -50,6 +40,18 @@ export async function POST(req: Request) {
       registrationIp: ip,
     },
   });
+  const [fromIp, unapproved] = await Promise.all([
+    prisma.oAuthClient.count({
+      where: { registrationIp: ip, createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
+    }),
+    prisma.oAuthClient.count({
+      where: { approvedAt: null, createdAt: { gt: new Date(Date.now() - UNAPPROVED_CLIENT_TTL_MS) } },
+    }),
+  ]);
+  if (fromIp > PER_IP_PER_HOUR || unapproved > MAX_UNAPPROVED) {
+    await prisma.oAuthClient.deleteMany({ where: { id: clientId } });
+    return oauthError("too_many_requests", "Too many app registrations. Try again later.", 429);
+  }
 
   return Response.json(
     {
