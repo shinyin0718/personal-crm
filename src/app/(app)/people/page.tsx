@@ -65,7 +65,7 @@ export default async function PeoplePage({ searchParams }: PageProps<"/people">)
   return (
     <>
       <PageHeader title="People" />
-      <form className="mb-4 space-y-2" role="search">
+      <form key={JSON.stringify(f)} className="mb-4 space-y-2" role="search">
         <div className="flex gap-2">
           <input
             name="q"
