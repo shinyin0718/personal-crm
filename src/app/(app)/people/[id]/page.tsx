@@ -50,7 +50,7 @@ export default async function PersonPage({ params }: PageProps<"/people/[id]">) 
       </PageHeader>
 
       <section className={`${cardClass} mb-4`}>
-        <div className="flex gap-4">
+        <div className="flex flex-col-reverse gap-4 sm:flex-row">
           <div className="min-w-0 flex-1 space-y-3">
             {subtitle && <p className="text-stone-700">{subtitle}</p>}
             {contacts.length > 0 && (
@@ -58,7 +58,7 @@ export default async function PersonPage({ params }: PageProps<"/people/[id]">) 
                 {contacts.map((c) => (
                   <div key={c.label} className="flex gap-2">
                     <dt className="w-16 shrink-0 text-stone-500">{c.label}</dt>
-                    <dd className="min-w-0 truncate">
+                    <dd className="min-w-0 wrap-anywhere">
                       <a
                         href={c.href}
                         className="text-teal-700 hover:underline"
@@ -87,9 +87,9 @@ export default async function PersonPage({ params }: PageProps<"/people/[id]">) 
             {person.notes && <p className="whitespace-pre-line text-sm text-stone-700">{person.notes}</p>}
           </div>
           {person.cardImageUrl && (
-            <a href={person.cardImageUrl} target="_blank" className="shrink-0" aria-label="Open card photo">
+            <a href={person.cardImageUrl} target="_blank" className="self-start sm:shrink-0" aria-label="Open card photo">
               {/* eslint-disable-next-line @next/next/no-img-element -- private, auth-checked image */}
-              <img src={person.cardImageUrl} alt="" className="h-20 w-32 rounded-md border border-stone-200 object-cover sm:h-24 sm:w-40" />
+              <img src={person.cardImageUrl} alt="" className="h-28 w-48 rounded-md border border-stone-200 object-cover sm:h-24 sm:w-40" />
             </a>
           )}
         </div>
